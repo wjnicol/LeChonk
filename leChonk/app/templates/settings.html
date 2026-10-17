@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="{{ url_for('main.index') }}">All Cats</a>
+        <span>Settings</span>
+    </div>
+
+    <div class="card">
+        <h2>Application Settings</h2>
+        <p style="color: #666; margin-bottom: 20px;">Configure your Le Chonk application.</p>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="settings-section">
+            <h3>Database Configuration</h3>
+            <p>Current database location:</p>
+            <div class="code">{{ current_db_uri }}</div>
+            
+            <form method="POST" action="{{ url_for('main.settings') }}" class="settings-form">
+                <div class="form-group">
+                    <label for="db_uri">Database URI *</label>
+                    <input type="text" id="db_uri" name="db_uri" 
+                           value="{{ current_db_uri }}" 
+                           placeholder="sqlite:///instance/lechonk.db" required>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Examples: <br>
+                        SQLite: <code>sqlite:///path/to/database.db</code><br>
+                        PostgreSQL: <code>postgresql://user:pass@localhost/dbname</code><br>
+                        MySQL: <code>mysql+pymysql://user:pass@localhost/dbname</code>
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="upload_folder">Uploads Folder</label>
+                    <input type="text" id="upload_folder" name="upload_folder" 
+                           value="{{ current_upload_folder }}" 
+                           placeholder="e.g., /path/to/uploads">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Leave blank to use default: <code>app/static/uploads/</code><br>
+                        Use absolute path. This folder stores uploaded documents.
+                    </small>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
+                <strong>⚠️ Migrate Database:</strong>
+                <p style="margin: 10px 0; color: #856404;">
+                    To move your existing data to a new database location, use the migration tool below.
+                </p>
+                
+                <div style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                    <strong>💡 Quick Path Selection:</strong>
+                    <div style="margin-top: 8px;">
+                        <button onclick="insertDefaultPath()" class="btn btn-small btn-info" style="font-size: 12px; padding: 5px 10px; margin-right: 5px;" title="Insert current database path">Use Current Path</button>
+                        <button onclick="insertHomePath()" class="btn btn-small btn-info" style="font-size: 12px; padding: 5px 10px;" title="Insert home directory path">Use Home Directory</button>
+                    </div>
+                </div>
+                
+                <form action="{{ url_for('main.migrate_db') }}" method="POST" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label for="new_db_uri">New Database URI *</label>
+                        <input type="text" id="new_db_uri" name="new_db_uri" 
+                               placeholder="sqlite:///new/path/to/database.db" required>
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            <strong>Note:</strong> Use an absolute path like <code>sqlite:////home/user/path/to/lechonk.db</code><br>
+                            Browser security prevents automatic folder browsing for security reasons. 
+                            Please type the full path, or use the buttons above.
+                        </small>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" name="migrate_uploads" value="yes" checked onchange="toggleUploadsPath()"> 
+                            Migrate uploaded files (documents)
+                        </label>
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            This will copy all uploaded document files to a new location.
+                        </small>
+                    </div>
+                    <div class="form-group" id="uploads_path_group" style="margin-top: 10px; display: block;">
+                        <label for="new_uploads_path">New Uploads Folder Path (optional)</label>
+                        <input type="text" id="new_uploads_path" name="new_uploads_path" 
+                               placeholder="e.g., /home/user/lechonk_uploads">
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            Leave blank to automatically create an uploads folder next to the new database.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('This will copy ALL your data (database + uploaded files) to the new location. The app will need to be restarted. Continue?');">
+                        Migrate Database
+                    </button>
+                </form>
+            </div>
+            
+            <script>
+                // Show uploads path field when migrate uploads is checked
+                function toggleUploadsPath() {
+                    const checked = document.querySelector('input[name="migrate_uploads"]').checked;
+                    document.getElementById('uploads_path_group').style.display = checked ? 'block' : 'none';
+                }
+                
+                // Insert common paths
+                function insertDefaultPath() {
+                    const current = '{{ current_db_uri }}'.replace('sqlite:///', '');
+                    const newPath = current.replace(/([^/]+)\.db$/, 'new_database.db');
+                    document.getElementById('new_db_uri').value = 'sqlite:///' + newPath;
+                }
+                
+                function insertHomePath() {
+                    // Use a placeholder - user will need to replace with their actual home path
+                    const homePath = '/home/YOUR_USERNAME/lechonk/lechonk.db';
+                    document.getElementById('new_db_uri').value = 'sqlite:///' + homePath;
+                    // Select the username part for easy replacement
+                    const input = document.getElementById('new_db_uri');
+                    input.focus();
+                    input.setSelectionRange(input.value.indexOf('YOUR_USERNAME'), input.value.indexOf('YOUR_USERNAME') + 'YOUR_USERNAME'.length);
+                }
+                
+                // Initialize
+                toggleUploadsPath();
+            </script>
+            
+            <form action="{{ url_for('main.reset_db') }}" method="POST" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-secondary" onclick="return confirm('Reset database configuration to default? This will use: sqlite:///instance/lechonk.db');">
+                    Reset to Default Location
+                </button>
+            </form>
+        </div>
+        
+        <div class="settings-section">
+            <h3>File Storage</h3>
+            <p>Uploaded documents are stored in: <code>{{ current_upload_folder }}</code></p>
+            <p style="color: #666; font-size: 14px;">
+                These files are ignored by Git (not committed to version control).
+            </p>
+            {% if current_upload_folder != default_upload_folder %}
+                <div style="margin-top: 10px; padding: 8px; background: #e7f3ff; border-radius: 4px; font-size: 14px;">
+                    <strong>ℹ️</strong> Using custom uploads folder. Make sure this directory exists and is writable.
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="settings-section">
+            <h3>Data Privacy</h3>
+            <p><strong>All your data stays local:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px; color: #555;">
+                <li>Database file: Not committed to Git (in .gitignore)</li>
+                <li>Uploaded files: Not committed to Git (in .gitignore)</li>
+                <li>Configuration: Not committed to Git (in .gitignore)</li>
+            </ul>
+            <p style="color: #666; font-size: 14px;">
+                Your cat data and documents stay private on your machine.
+            </p>
+        </div>
+    </div>
+{% endblock %}
