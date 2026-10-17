@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="{{ url_for('main.index') }}">All Cats</a>
+        <span>{% if cat %}Edit{{ else }}Add{% endif %} Cat</span>
+    </div>
+
+    <div class="card">
+        <h2>{% if cat %}Edit {{ cat.name }}{% else %}Add New Cat{% endif %}</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Cat Name *</label>
+                <input type="text" id="name" name="name" value="{{ cat.name if cat else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="breed">Breed</label>
+                <input type="text" id="breed" name="breed" value="{{ cat.breed if cat else '' }}" placeholder="e.g., Domestic Shorthair">
+            </div>
+            
+            <div class="form-group">
+                <label for="birth_date">Birth Date</label>
+                <input type="date" id="birth_date" name="birth_date" 
+                       value="{{ cat.birth_date.isoformat() if cat and cat.birth_date else '' }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes">{{ cat.notes if cat else '' }}</textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Cat</button>
+                <a href="{% if cat %}{{ url_for('main.view_cat', cat_id=cat.id) }}{% else %}{{ url_for('main.index') }}{% endif %}" 
+                   class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
