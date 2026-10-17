@@ -40,6 +40,10 @@ def delete_cat(cat_id):
     """Delete a cat and all its entries"""
     cat = Cat.query.get_or_404(cat_id)
     
+    # Delete profile picture if exists
+    if cat.profile_picture and os.path.exists(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture)):
+        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture))
+    
     # Delete associated files
     for doc in cat.documents:
         if doc.file_path and os.path.exists(os.path.join(current_app.config['UPLOAD_FOLDER'], doc.file_path)):
@@ -62,6 +66,10 @@ def add_cat():
         name = request.form.get('name', '').strip()
         breed = request.form.get('breed', '').strip()
         birth_date_str = request.form.get('birth_date')
+        owner = request.form.get('owner', '').strip()
+        microchip_number = request.form.get('microchip_number', '').strip()
+        place_of_birth = request.form.get('place_of_birth', '').strip()
+        current_address = request.form.get('current_address', '').strip()
         notes = request.form.get('notes', '').strip()
         
         if not name:
@@ -76,10 +84,27 @@ def add_cat():
                 flash('Invalid birth date format.', 'error')
                 return render_template('cat_form.html', cat=None)
         
+        # Handle profile picture upload
+        profile_picture_path = None
+        if 'profile_picture' in request.files:
+            file = request.files['profile_picture']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # Add timestamp to prevent conflicts
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                unique_filename = f"{timestamp}_{filename}"
+                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                profile_picture_path = unique_filename
+        
         cat = Cat(
             name=name,
             breed=breed or None,
             birth_date=birth_date,
+            owner=owner or None,
+            microchip_number=microchip_number or None,
+            place_of_birth=place_of_birth or None,
+            current_address=current_address or None,
+            profile_picture=profile_picture_path,
             notes=notes or None
         )
         db.session.add(cat)
@@ -98,6 +123,7 @@ def edit_cat(cat_id):
     if request.method == 'POST':
         cat.name = request.form.get('name', '').strip()
         cat.breed = request.form.get('breed', '').strip() or None
+        cat.owner = request.form.get('owner', '').strip() or None
         
         birth_date_str = request.form.get('birth_date')
         if birth_date_str:
@@ -108,7 +134,32 @@ def edit_cat(cat_id):
         else:
             cat.birth_date = None
         
+        cat.microchip_number = request.form.get('microchip_number', '').strip() or None
+        cat.place_of_birth = request.form.get('place_of_birth', '').strip() or None
+        cat.current_address = request.form.get('current_address', '').strip() or None
         cat.notes = request.form.get('notes', '').strip() or None
+        
+        # Handle profile picture upload/replace
+        if 'profile_picture' in request.files:
+            file = request.files['profile_picture']
+            if file and file.filename != '' and allowed_file(file.filename):
+                # Delete old profile picture if exists
+                if cat.profile_picture and os.path.exists(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture)):
+                    os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture))
+                
+                # Save new picture
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                unique_filename = f"{timestamp}_{filename}"
+                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                cat.profile_picture = unique_filename
+        
+        # Handle profile picture removal
+        if request.form.get('remove_profile_pic') == '1':
+            if cat.profile_picture and os.path.exists(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture)):
+                os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], cat.profile_picture))
+            cat.profile_picture = None
+        
         db.session.commit()
         flash(f'Cat "{cat.name}" updated successfully!', 'success')
         return redirect(url_for('main.view_cat', cat_id=cat.id))
@@ -358,3 +409,181 @@ def api_weights(cat_id):
             'notes': w.notes
         } for w in weights]
     }
+
+
+# =====================
+# SETTINGS
+# =====================
+
+@main.route('/settings', methods=['GET', 'POST'])
+def settings():
+    """Configuration settings page"""
+    import json
+    import os
+    
+    # Config file path
+    config_file = os.path.join(current_app.root_path, '..', 'lechonk_config.json')
+    
+    # Load existing config or use defaults
+    config = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+        except:
+            config = {}
+    
+    if request.method == 'POST':
+        # Get the new database URI
+        db_uri = request.form.get('db_uri', '').strip()
+        upload_folder = request.form.get('upload_folder', '').strip()
+        
+        if db_uri:
+            config['DATABASE_URL'] = db_uri
+        
+        if upload_folder:
+            config['UPLOAD_FOLDER'] = upload_folder
+        
+        # Save to config file
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        flash('Settings saved! Please restart the application for changes to take effect.', 'success')
+        return redirect(url_for('main.settings'))
+    
+    # Get current database URI
+    current_db_uri = config.get('DATABASE_URL', current_app.config['SQLALCHEMY_DATABASE_URI'])
+    current_upload_folder = config.get('UPLOAD_FOLDER', current_app.config['UPLOAD_FOLDER'])
+    
+    return render_template('settings.html', current_db_uri=current_db_uri, 
+                         current_upload_folder=current_upload_folder,
+                         default_upload_folder=current_app.config['UPLOAD_FOLDER'])
+
+
+@main.route('/settings/reset-db', methods=['POST'])
+def reset_db():
+    """Reset the database configuration to default"""
+    import os
+    config_file = os.path.join(current_app.root_path, '..', 'lechonk_config.json')
+    
+    if os.path.exists(config_file):
+        os.remove(config_file)
+        flash('Database configuration reset to default. Please restart the application.', 'success')
+    else:
+        flash('No custom database configuration found.', 'info')
+    
+    return redirect(url_for('main.settings'))
+
+
+@main.route('/migrate-db', methods=['POST'])
+def migrate_db():
+    """Migrate all data to a new database location"""
+    import json
+    import os
+    import shutil
+    
+    new_db_uri = request.form.get('new_db_uri', '').strip()
+    migrate_uploads = request.form.get('migrate_uploads') == 'yes'
+    new_uploads_path = request.form.get('new_uploads_path', '').strip()
+    
+    if not new_db_uri:
+        flash('New database URI is required.', 'error')
+        return redirect(url_for('main.settings'))
+    
+    # Get current database path
+    current_db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
+    
+    # Parse database URIs to get file paths
+    def get_db_path(uri):
+        """Extract file path from SQLite URI"""
+        if uri.startswith('sqlite:///'):
+            return uri.replace('sqlite:///', '')
+        return None
+    
+    current_db_path = get_db_path(current_db_uri)
+    new_db_path = get_db_path(new_db_uri)
+    
+    if not current_db_path or not new_db_path:
+        flash('Only SQLite database migration is supported through this interface.', 'error')
+        return redirect(url_for('main.settings'))
+    
+    # Check if new database already exists
+    if os.path.exists(new_db_path):
+        flash(f'Database file already exists at {new_db_path}. Please choose a different location.', 'error')
+        return redirect(url_for('main.settings'))
+    
+    try:
+        # Step 1: Ensure the directory for the new database exists
+        new_db_dir = os.path.dirname(new_db_path)
+        if new_db_dir:
+            os.makedirs(new_db_dir, exist_ok=True)
+        
+        # Step 2: Copy the database file (SQLite supports this)
+        shutil.copy2(current_db_path, new_db_path)
+        
+        # Step 3: Handle uploads migration if requested
+        if migrate_uploads:
+            current_uploads = current_app.config['UPLOAD_FOLDER']
+            
+            if new_uploads_path:
+                target_uploads = new_uploads_path
+            else:
+                # Use the same relative structure as the new db location
+                # Extract the base directory from the new db path
+                target_uploads = os.path.join(new_db_dir, 'app', 'static', 'uploads')
+            
+            # Check if target uploads directory exists
+            if os.path.exists(target_uploads):
+                # Check if there are files there
+                if os.listdir(target_uploads):
+                    flash(f'Target uploads directory {target_uploads} already exists and is not empty. Uploads not migrated.', 'warning')
+                else:
+                    # Directory exists but empty, we can use it
+                    pass
+            else:
+                # Create the target uploads directory
+                os.makedirs(target_uploads, exist_ok=True)
+            
+            # Copy all files from current uploads to target uploads
+            if os.path.exists(current_uploads) and os.path.isdir(current_uploads):
+                for item in os.listdir(current_uploads):
+                    src = os.path.join(current_uploads, item)
+                    dst = os.path.join(target_uploads, item)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+            
+            # Update the config to point to the new uploads location
+            # Store relative path from the app directory
+            import os.path
+            app_dir = os.path.dirname(current_app.root_path)
+            rel_uploads_path = os.path.relpath(target_uploads, app_dir)
+        
+        # Step 4: Save new config
+        config_file = os.path.join(current_app.root_path, '..', 'lechonk_config.json')
+        config = {}
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+        config['DATABASE_URL'] = new_db_uri
+        if migrate_uploads and new_uploads_path:
+            # Store the uploads path if a custom one was specified
+            config['UPLOAD_FOLDER'] = new_uploads_path
+        elif migrate_uploads:
+            # Otherwise store the relative path
+            config['UPLOAD_FOLDER'] = rel_uploads_path
+        
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        msg = f'Successfully migrated database to {new_db_uri}'
+        if migrate_uploads:
+            msg += f' and uploaded files to {target_uploads}'
+        msg += '. Please restart the application.'
+        flash(msg, 'success')
+        return redirect(url_for('main.settings'))
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f'Migration failed: {str(e)}', 'error')
+        return redirect(url_for('main.settings'))

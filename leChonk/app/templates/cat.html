@@ -7,13 +7,24 @@
     </div>
 
     <div class="card">
-        <h2>{{ cat.name }}</h2>
+        <div class="cat-header">
+            {% if cat.profile_picture %}
+                <div class="cat-profile-pic">
+                    <img src="{{ url_for('main.uploaded_file', filename=cat.profile_picture) }}" 
+                         alt="{{ cat.name }}" 
+                         onerror="this.style.display='none'">
+                </div>
+            {% endif %}
+            <div class="cat-name-section">
+                <h2>{{ cat.name }}</h2>
+            </div>
+        </div>
         <div class="cat-actions" style="margin-bottom: 20px;">
             <a href="{{ url_for('main.edit_cat', cat_id=cat.id) }}" class="btn btn-secondary">✏️ Edit Cat</a>
             <a href="{{ url_for('main.add_weight', cat_id=cat.id) }}" class="btn btn-primary">➕ Add Weight</a>
             <a href="{{ url_for('main.add_document', cat_id=cat.id) }}" class="btn btn-primary">📄 Add Document</a>
             <form action="{{ url_for('main.delete_cat', cat_id=cat.id) }}" method="POST" style="display: inline;">
-                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this cat and ALL its data?');">🗑️ Delete Cat</button>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete {{ cat.name }} and ALL its data?');">🗑️ Delete Cat</button>
             </form>
         </div>
         
@@ -27,6 +38,12 @@
         </div>
         
         <div class="stats">
+            {% if cat.owner %}
+                <div class="stat-item">
+                    <div class="stat-label">Owner</div>
+                    <div class="stat-value">{{ cat.owner }}</div>
+                </div>
+            {% endif %}
             {% if cat.breed %}
                 <div class="stat-item">
                     <div class="stat-label">Breed</div>
@@ -37,6 +54,24 @@
                 <div class="stat-item">
                     <div class="stat-label">Birth Date</div>
                     <div class="stat-value">{{ cat.birth_date.strftime('%b %d, %Y') }}</div>
+                </div>
+            {% endif %}
+            {% if cat.microchip_number %}
+                <div class="stat-item">
+                    <div class="stat-label">Microchip</div>
+                    <div class="stat-value">{{ cat.microchip_number }}</div>
+                </div>
+            {% endif %}
+            {% if cat.place_of_birth %}
+                <div class="stat-item">
+                    <div class="stat-label">Place of Birth</div>
+                    <div class="stat-value">{{ cat.place_of_birth }}</div>
+                </div>
+            {% endif %}
+            {% if cat.current_address %}
+                <div class="stat-item">
+                    <div class="stat-label">Current Address</div>
+                    <div class="stat-value">{{ cat.current_address }}</div>
                 </div>
             {% endif %}
             <div class="stat-item">
@@ -75,9 +110,12 @@
 
     {# Weight Entries #}
     {% if weights %}
-        <div class="card">
-            <h2>Weight Entries</h2>
-            <div class="entry-list">
+        <div class="card collapsible-section">
+            <div class="section-header" onclick="toggleSection('weightEntries')" style="cursor: pointer;">
+                <h2 style="display: inline;">Weight Entries ({{ weights|length }})</h2>
+                <span class="toggle-icon" id="weightEntriesToggle">▼</span>
+            </div>
+            <div class="entry-list collapsible-content" id="weightEntriesContent">
                 {% for weight in weights %}
                     <div class="entry-item">
                         <div class="entry-header">
@@ -102,9 +140,12 @@
 
     {# Documents #}
     {% if documents %}
-        <div class="card">
-            <h2>Documents</h2>
-            <div class="entry-list">
+        <div class="card collapsible-section">
+            <div class="section-header" onclick="toggleSection('documents')" style="cursor: pointer;">
+                <h2 style="display: inline;">Documents ({{ documents|length }})</h2>
+                <span class="toggle-icon" id="documentsToggle">▼</span>
+            </div>
+            <div class="entry-list collapsible-content" id="documentsContent">
                 {% for doc in documents %}
                     <div class="entry-item document">
                         <div class="entry-header">
@@ -137,6 +178,22 @@
     {% endif %}
 
     <script>
+        // Toggle collapsible sections
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId + 'Content');
+            const icon = document.getElementById(sectionId + 'Toggle');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('collapsed');
+                icon.classList.add('collapsed');
+                icon.textContent = '▶';
+            }
+        }
+        
         // Convert kg to lbs
         function kgToLbs(kg) {
             return kg * 2.20462;

@@ -14,10 +14,21 @@
         <div class="cat-grid">
             {% for cat in cats %}
                 <div class="cat-card" onclick="window.location.href='{{ url_for('main.view_cat', cat_id=cat.id) }}'" style="cursor: pointer;">
+                    {% if cat.profile_picture %}
+                        <div class="cat-image">
+                            <img src="{{ url_for('main.uploaded_file', filename=cat.profile_picture) }}" 
+                                 alt="{{ cat.name }}" 
+                                 onerror="this.style.display='none'">
+                        </div>
+                    {% endif %}
                     <div class="cat-name">{{ cat.name }}</div>
                     <div class="cat-info">
+                        {% if cat.owner %}Owner: {{ cat.owner }}<br>{% endif %}
                         {% if cat.breed %}{{ cat.breed }}<br>{% endif %}
                         {% if cat.birth_date %}Born: {{ cat.birth_date.strftime('%b %d, %Y') }}<br>{% endif %}
+                        {% if cat.place_of_birth %}Place of Birth: {{ cat.place_of_birth }}<br>{% endif %}
+                        {% if cat.current_address %}Address: {{ cat.current_address }}<br>{% endif %}
+                        {% if cat.microchip_number %}Microchip: {{ cat.microchip_number }}<br>{% endif %}
                         {% if cat.latest_weight() %}Latest: {{ cat.latest_weight().weight_kg }}kg{% endif %}
                     </div>
                     <div class="cat-meta">

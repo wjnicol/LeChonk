@@ -31,6 +31,7 @@ instance/
 
 # Virtual environments
 .env
+.env.example
 .venv
 env/
 venv/
@@ -50,5 +51,29 @@ Thumbs.db
 # Uploads
 app/static/uploads/
 
+# Local config
+lechonk_config.json
+
 # Logs
 *.log
+
+# Temporary/process files
+*.tmp
+*.temp
+/tmp/
+
+# Test and example files
+/test_*/
+/example_*/
+
+# OCR temporary files
+*.tif
+*.tiff
+
+# Timeline feature
+# Temporary extracted text files
+*.txt_extract
+/timeline_cache/
+
+# Roadmap and documentation drafts
+/ROADMAP*.draft.md

@@ -18,8 +18,15 @@
         {% endwith %}
 
         <div class="header">
-            <h1>🐱 Le Chonk</h1>
-            <p class="subtitle">Cat Health & Weight Tracker</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🐱 Le Chonk</h1>
+                    <p class="subtitle">Cat Health & Weight Tracker</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('main.settings') }}" class="btn btn-secondary" style="font-size: 14px;">⚙️ Settings</a>
+                </div>
+            </div>
         </div>
 
         {% block content %}{% endblock %}
