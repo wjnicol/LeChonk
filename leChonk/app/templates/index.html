@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <span>All Cats</span>
+    </div>
+
+    <div class="card">
+        <h2>Your Cats</h2>
+        <a href="{{ url_for('main.add_cat') }}" class="btn btn-primary">➕ Add New Cat</a>
+    </div>
+
+    {% if cats %}
+        <div class="cat-grid">
+            {% for cat in cats %}
+                <div class="cat-card" onclick="window.location.href='{{ url_for('main.view_cat', cat_id=cat.id) }}'" style="cursor: pointer;">
+                    <div class="cat-name">{{ cat.name }}</div>
+                    <div class="cat-info">
+                        {% if cat.breed %}{{ cat.breed }}<br>{% endif %}
+                        {% if cat.birth_date %}Born: {{ cat.birth_date.strftime('%b %d, %Y') }}<br>{% endif %}
+                        {% if cat.latest_weight() %}Latest: {{ cat.latest_weight().weight_kg }}kg{% endif %}
+                    </div>
+                    <div class="cat-meta">
+                        <span>{{ cat.weight_entries|length }} weights</span>
+                        <span>{{ cat.documents|length }} docs</span>
+                    </div>
+                    <div class="cat-actions" onclick="event.stopPropagation();">
+                        <a href="{{ url_for('main.view_cat', cat_id=cat.id) }}" class="btn btn-secondary btn-sm">View</a>
+                        <a href="{{ url_for('main.edit_cat', cat_id=cat.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="empty-state">
+                <p>No cats yet.</p>
+                <a href="{{ url_for('main.add_cat') }}" class="btn btn-primary">Add Your First Cat</a>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
